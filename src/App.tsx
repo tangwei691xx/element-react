@@ -1,9 +1,20 @@
+import { useState } from 'react'
 import Button from './components/Button'
 
 const App = () => {
+  const [tos, setTo] = useState(false)
+  const keu = () => {
+    setTo(true)
+    setTimeout(() => {
+      setTo(false)
+    }, 3000)
+  }
+
   return (
     <>
-      <Button>22</Button>
+      <Button onClick={keu} loading={tos}>
+        22
+      </Button>
     </>
   )
 }

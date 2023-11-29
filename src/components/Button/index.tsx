@@ -10,9 +10,11 @@ import React, {
   createRef,
   forwardRef,
   useCallback,
+  useEffect,
   useMemo,
   useState
 } from 'react'
+import classNames from 'classnames'
 export interface BaseButtonProps {
   type?: ButtonType
   href?: string
@@ -32,7 +34,13 @@ export interface BaseButtonProps {
   classNames?: { icon: string }
   styles?: React.CSSProperties
 }
-export interface ButtonProps extends BaseButtonProps {
+type MergedHTMLAttributes = Omit<
+  React.HTMLAttributes<HTMLElement> &
+    React.ButtonHTMLAttributes<HTMLElement> &
+    React.AnchorHTMLAttributes<HTMLElement>,
+  'type'
+>
+export interface ButtonProps extends BaseButtonProps, MergedHTMLAttributes {
   href?: string
   htmlType?: ButtonHTMLType
 }
@@ -50,7 +58,7 @@ const getLoadingConfig = (
     const delays =
       !Number.isNaN(delayIndex) &&
       typeof delayIndex === 'number' &&
-      delayIndex < 0
+      delayIndex > 0
         ? delayIndex
         : 0
     return {
@@ -82,10 +90,43 @@ const Button = forwardRef<HTMLAnchorElement | HTMLButtonElement, ButtonProps>(
       [loading]
     )
     const [innerLoading, setLoading] = useState<boolean>(loadingOrDelay.loading)
+    //监听初始化状态
+    useEffect(() => {
+      let delayTimer: ReturnType<typeof setTimeout> | null = null
+      if (loadingOrDelay.delay) {
+        delayTimer = setTimeout(() => {
+          delayTimer = null
+          setLoading(false)
+        }, loadingOrDelay.delay * 1000)
+      } else {
+        setLoading(loadingOrDelay.loading)
+      }
+      function cleanupTimer() {
+        if (delayTimer) {
+          clearTimeout(delayTimer)
+          delayTimer = null
+        }
+      }
+      return cleanupTimer
+    }, [loadingOrDelay])
+
     const mergedDisabled = customDisabled
-    // 由于外围也需要ref，内部也需要操作dom
+    // 由于外围也需要ref，内部也需要操作dom button-loading
     const buttonRef = composeRef(ref, internalRef)
-    const handleClick = () => {}
+    const handleClick = (
+      e: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement, MouseEvent>
+    ) => {
+      const { onClick } = props
+      if (innerLoading) {
+        e.preventDefault()
+        return
+      }
+      ;(
+        onClick as React.MouseEventHandler<
+          HTMLButtonElement | HTMLAnchorElement
+        >
+      )?.(e)
+    }
 
     if (href) {
       return (
@@ -104,13 +145,15 @@ const Button = forwardRef<HTMLAnchorElement | HTMLButtonElement, ButtonProps>(
       <button
         {...rest}
         type={htmlType}
-        // className={classes}
+        className={classNames('Wt_button_Node', {
+          'button-loading': innerLoading
+        })}
         style={styles}
         onClick={handleClick}
         disabled={mergedDisabled}
         ref={buttonRef as React.Ref<HTMLButtonElement>}
       >
-        按鈕
+        {children}
       </button>
     )
   }
